@@ -11,18 +11,18 @@ body {
   background-image:
     radial-gradient(ellipse at 30% 20%, #d4b896 0%, transparent 60%),
     radial-gradient(ellipse at 70% 80%, #b8956a 0%, transparent 60%);
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  min-height: 100vh;
-  font-family: 'Microsoft YaHei', '微软雅黑', Georgia, serif;
+  position: relative;
+  width: 100vw; height: 100vh;
   overflow: hidden;
+  font-family: 'Microsoft YaHei', '微软雅黑', Georgia, serif;
   user-select: none;
 }
 
 #game-wrap {
-  position: relative;
-  width: 800px;
-  height: 560px;
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 800px; height: 560px;
+  transform-origin: top left;
 }
 
 #bg-canvas {
@@ -1406,12 +1406,15 @@ function endAnim() { CAT.state='idle'; CAT.stateTimer=2; CAT.reactEmoji=''; CAT.
 function spawnParticles(emoji, n) {
   const wrap = document.getElementById('game-wrap');
   const rect = wrap.getBoundingClientRect();
+  const scaleX = rect.width  / 800;
+  const scaleY = rect.height / 560;
+  const scale  = Math.min(scaleX, scaleY);
   for(let i = 0; i < n; i++) {
     const el = document.createElement('div');
     el.className = 'particle';
     el.textContent = emoji;
-    el.style.left = (rect.left + CAT.x + (Math.random()-0.5)*50) + 'px';
-    el.style.top  = (rect.top  + CAT.y - 60 + (Math.random()-0.5)*30) + 'px';
+    el.style.left = (rect.left + CAT.x * scale + (Math.random()-0.5)*50) + 'px';
+    el.style.top  = (rect.top  + CAT.y * scale - 60 + (Math.random()-0.5)*30) + 'px';
     el.style.animationDelay = (i * 0.18) + 's';
     document.body.appendChild(el);
     setTimeout(() => el.remove(), 1800);
@@ -1563,6 +1566,19 @@ updateStateChip();
 document.getElementById('growth-chip').textContent = getGrowthLabel();
 checkUnlocks();
 requestAnimationFrame(loop);
+
+// ─── Mobile scale ─────────────────────────────────────────────────────────────
+function scaleGame() {
+  const wrap = document.getElementById('game-wrap');
+  const scaleX = window.innerWidth  / 800;
+  const scaleY = window.innerHeight / 560;
+  const scale  = Math.min(scaleX, scaleY);
+  const offsetX = (window.innerWidth  - 800 * scale) / 2;
+  const offsetY = (window.innerHeight - 560 * scale) / 2;
+  wrap.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+}
+scaleGame();
+window.addEventListener('resize', scaleGame);
 </script>
 </body>
 </html>
