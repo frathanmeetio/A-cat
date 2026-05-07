@@ -90,10 +90,12 @@ body {
 
 /* Action buttons */
 #actions {
-  position: absolute; bottom: 16px; left: 50%;
+  position: absolute; bottom: 12px; left: 50%;
   transform: translateX(-50%);
-  display: flex; gap: 6px;
+  display: flex; gap: 5px;
   flex-wrap: wrap; justify-content: center; max-width: 760px;
+  width: 100%;
+  padding: 0 8px;
 }
 .btn {
   background: rgba(255,248,235,0.92);
@@ -125,14 +127,17 @@ body {
   background: rgba(80,40,10,0.55);
   z-index: 100;
   backdrop-filter: blur(6px);
+  padding: 16px;
 }
 #popup.show { display: flex; }
 #popup-box {
   background: linear-gradient(150deg, #fffaf0 0%, #fff8e8 60%, #fef3d8 100%);
   border: 1px solid rgba(180,130,70,0.35);
-  border-radius: 28px;
-  padding: 36px 42px;
-  max-width: 440px; width: 90%;
+  border-radius: 24px;
+  padding: 28px 28px;
+  max-width: 440px; width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
   color: #5a3010;
   box-shadow: 0 32px 80px rgba(100,50,10,0.35), inset 0 1px 0 rgba(255,255,255,0.95);
   animation: popIn 0.35s cubic-bezier(.34,1.56,.64,1);
@@ -141,17 +146,17 @@ body {
   from { transform: scale(0.82) translateY(10px); opacity: 0; }
   to   { transform: scale(1)    translateY(0);   opacity: 1; }
 }
-#popup-icon  { font-size: 52px; text-align: center; margin-bottom: 14px; }
+#popup-icon  { font-size: 44px; text-align: center; margin-bottom: 12px; }
 #popup-title {
-  font-size: 20px; font-weight: 700; color: #8b4513;
-  margin-bottom: 14px; letter-spacing: 0.5px;
+  font-size: 18px; font-weight: 700; color: #8b4513;
+  margin-bottom: 12px; letter-spacing: 0.5px;
 }
 #popup-body  {
-  font-size: 14px; line-height: 2; color: #7a5030;
+  font-size: 13px; line-height: 1.9; color: #7a5030;
   white-space: pre-line;
 }
 #popup-btn {
-  margin-top: 26px; width: 100%;
+  margin-top: 22px; width: 100%;
   background: linear-gradient(135deg, #c47830, #a85e20);
   border: none; border-radius: 16px;
   color: #fff8ee; font-size: 15px; padding: 13px;
@@ -1545,7 +1550,16 @@ canvas.addEventListener('click', e => {
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────
-showPopup('🐱', '第一次的亲密接触',
+updateCatScale();
+updateMoodChip();
+updateStateChip();
+document.getElementById('growth-chip').textContent = getGrowthLabel();
+checkUnlocks();
+requestAnimationFrame(loop);
+
+const hasSave = loadGame();
+if(!hasSave) {
+  showPopup('🐱', '第一次的亲密接触',
 `一只刚满两月的小狸花猫，来到了你的家。
 
 它缩在纸箱里，只有尾巴尖在微微颤抖。
@@ -1559,15 +1573,9 @@ showPopup('🐱', '第一次的亲密接触',
 🌙 休息 — 让猫咪恢复健康
 
 每个月都会发生一些小故事……`);
-
-updateCatScale();
-updateMoodChip();
-updateStateChip();
-document.getElementById('growth-chip').textContent = getGrowthLabel();
-checkUnlocks();
-requestAnimationFrame(loop);
-
-// ─── Mobile scale ─────────────────────────────────────────────────────────────
+} else {
+  later(300, () => showToast('💾', `上次的进度已恢复 · 第 ${month} 月`));
+}
 function scaleGame() {
   const wrap = document.getElementById('game-wrap');
   const scaleX = window.innerWidth  / 800;
@@ -1579,6 +1587,59 @@ function scaleGame() {
 }
 scaleGame();
 window.addEventListener('resize', scaleGame);
+
+// ─── Save / Load ──────────────────────────────────────────────────────────────
+const SAVE_KEY = 'catgame_save_v1';
+
+function saveGame() {
+  const data = {
+    STATS: { ...STATS },
+    month, catMood, actionsToday, dayTimer,
+    catPersonality: catPersonality ? Object.keys(PERSONALITIES).find(k => PERSONALITIES[k] === catPersonality) : null,
+    personalityIntroShown,
+    unlockedIds: [...unlockedIds],
+    shownTips: [...shownTips],
+    gameOver,
+  };
+  localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+}
+
+function loadGame() {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if(!raw) return false;
+  try {
+    const d = JSON.parse(raw);
+    Object.assign(STATS, d.STATS);
+    month = d.month;
+    catMood = d.catMood;
+    actionsToday = d.actionsToday;
+    dayTimer = d.dayTimer;
+    personalityIntroShown = d.personalityIntroShown;
+    gameOver = d.gameOver;
+    if(d.catPersonality) catPersonality = PERSONALITIES[d.catPersonality];
+    d.unlockedIds.forEach(id => {
+      unlockedIds.add(id);
+      const u = UNLOCKS.find(u => u.id === id);
+      if(u) addUnlockButton(u);
+    });
+    d.shownTips.forEach(t => shownTips.add(t));
+    // sync UI
+    updateHUD();
+    updateStateChip();
+    updateMoodChip();
+    updateCatScale();
+    document.getElementById('day-chip').textContent = `第 ${month} 月`;
+    document.getElementById('growth-chip').textContent = getGrowthLabel();
+    if(catPersonality) document.getElementById('personality-chip').textContent = catPersonality.name;
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+// 每30秒自动存一次，页面关闭前也存
+setInterval(saveGame, 30000);
+window.addEventListener('beforeunload', saveGame);
 </script>
 </body>
 </html>
