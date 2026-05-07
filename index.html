@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第一次的亲密接触 — 与狸花猫的一年</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #c8a97e;
+  background-image:
+    radial-gradient(ellipse at 30% 20%, #d4b896 0%, transparent 60%),
+    radial-gradient(ellipse at 70% 80%, #b8956a 0%, transparent 60%);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  min-height: 100vh;
+  font-family: 'Microsoft YaHei', '微软雅黑', Georgia, serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+#game-wrap {
+  position: relative;
+  width: 800px;
+  height: 560px;
+}
+
+#bg-canvas {
+  position: absolute; top: 0; left: 0;
+  border-radius: 24px;
+  box-shadow:
+    0 20px 60px rgba(100,60,20,0.35),
+    0 4px 12px rgba(100,60,20,0.2),
+    inset 0 1px 0 rgba(255,240,210,0.6);
+}
+
+#game-canvas {
+  position: absolute; top: 0; left: 0;
+  border-radius: 24px;
+  cursor: pointer;
+}
+
+/* HUD */
+#hud {
+  position: absolute; top: 16px; right: 16px;
+  background: rgba(255,248,235,0.88);
+  border: 1px solid rgba(180,130,70,0.3);
+  border-radius: 18px;
+  padding: 14px 18px;
+  color: #6b4226;
+  font-size: 12px;
+  min-width: 148px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 16px rgba(120,70,20,0.15), inset 0 1px 0 rgba(255,255,255,0.8);
+}
+.stat-row {
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 9px;
+}
+.stat-row:last-child { margin-bottom: 0; }
+.stat-label { width: 46px; font-size: 11px; color: #8b5e3c; }
+.stat-bar-bg {
+  flex: 1; height: 6px; background: rgba(180,130,70,0.18);
+  border-radius: 3px; overflow: hidden;
+}
+.stat-bar { height: 100%; border-radius: 3px; transition: width 0.5s cubic-bezier(.4,0,.2,1); }
+#bar-trust  { background: linear-gradient(90deg, #e8758a, #d4516a); }
+#bar-health { background: linear-gradient(90deg, #7bbf7a, #4d9e4b); }
+#bar-hunger { background: linear-gradient(90deg, #d4914a, #c07030); }
+
+#day-chip {
+  position: absolute; top: 16px; left: 16px;
+  background: rgba(255,248,235,0.88);
+  border: 1px solid rgba(180,130,70,0.3);
+  border-radius: 24px; padding: 7px 18px;
+  color: #8b4513; font-size: 14px; font-weight: 700;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px rgba(120,70,20,0.12), inset 0 1px 0 rgba(255,255,255,0.8);
+  letter-spacing: 0.5px;
+}
+
+#state-chip {
+  position: absolute; top: 58px; left: 16px;
+  background: rgba(255,248,235,0.8);
+  border: 1px solid rgba(180,130,70,0.2);
+  border-radius: 24px; padding: 5px 14px;
+  color: #a0622a; font-size: 12px;
+  backdrop-filter: blur(6px);
+}
+
+/* Action buttons */
+#actions {
+  position: absolute; bottom: 16px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; gap: 6px;
+  flex-wrap: wrap; justify-content: center; max-width: 760px;
+}
+.btn {
+  background: rgba(255,248,235,0.92);
+  border: 1px solid rgba(180,130,70,0.35);
+  border-radius: 28px;
+  color: #7a4520; font-size: 13px;
+  padding: 9px 20px; cursor: pointer;
+  transition: all 0.18s cubic-bezier(.4,0,.2,1);
+  backdrop-filter: blur(6px);
+  display: flex; align-items: center; gap: 6px;
+  white-space: nowrap;
+  font-family: inherit;
+  box-shadow: 0 3px 10px rgba(120,70,20,0.12), inset 0 1px 0 rgba(255,255,255,0.9);
+}
+.btn:hover:not(:disabled) {
+  background: rgba(255,252,245,0.98);
+  border-color: rgba(180,120,50,0.55);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(120,70,20,0.2), inset 0 1px 0 rgba(255,255,255,0.95);
+}
+.btn:active:not(:disabled) { transform: translateY(-1px); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-cd { font-size: 10px; color: #b08050; min-width: 16px; text-align: right; }
+
+/* Popup */
+#popup {
+  position: fixed; inset: 0;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(80,40,10,0.55);
+  z-index: 100;
+  backdrop-filter: blur(6px);
+}
+#popup.show { display: flex; }
+#popup-box {
+  background: linear-gradient(150deg, #fffaf0 0%, #fff8e8 60%, #fef3d8 100%);
+  border: 1px solid rgba(180,130,70,0.35);
+  border-radius: 28px;
+  padding: 36px 42px;
+  max-width: 440px; width: 90%;
+  color: #5a3010;
+  box-shadow: 0 32px 80px rgba(100,50,10,0.35), inset 0 1px 0 rgba(255,255,255,0.95);
+  animation: popIn 0.35s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes popIn {
+  from { transform: scale(0.82) translateY(10px); opacity: 0; }
+  to   { transform: scale(1)    translateY(0);   opacity: 1; }
+}
+#popup-icon  { font-size: 52px; text-align: center; margin-bottom: 14px; }
+#popup-title {
+  font-size: 20px; font-weight: 700; color: #8b4513;
+  margin-bottom: 14px; letter-spacing: 0.5px;
+}
+#popup-body  {
+  font-size: 14px; line-height: 2; color: #7a5030;
+  white-space: pre-line;
+}
+#popup-btn {
+  margin-top: 26px; width: 100%;
+  background: linear-gradient(135deg, #c47830, #a85e20);
+  border: none; border-radius: 16px;
+  color: #fff8ee; font-size: 15px; padding: 13px;
+  cursor: pointer; transition: opacity 0.2s, transform 0.1s;
+  letter-spacing: 0.5px; font-weight: 600;
+  font-family: inherit;
+  box-shadow: 0 4px 14px rgba(140,70,10,0.35);
+}
+#popup-btn:hover { opacity: 0.88; }
+#popup-btn:active { transform: scale(0.98); }
+
+/* Mood chip */
+#mood-chip {
+  position: absolute; top: 96px; left: 16px;
+  background: rgba(255,248,235,0.8);
+  border: 1px solid rgba(180,130,70,0.2);
+  border-radius: 24px; padding: 5px 14px;
+  font-size: 12px;
+  backdrop-filter: blur(6px);
+  transition: color 0.5s, border-color 0.5s;
+}
+#mood-chip.mood-happy  { color: #e05878; border-color: rgba(220,80,110,0.35); }
+#mood-chip.mood-neutral{ color: #a0622a; border-color: rgba(180,130,70,0.2);  }
+#mood-chip.mood-bored  { color: #7a7a8a; border-color: rgba(120,120,150,0.3); }
+#mood-chip.mood-anxious{ color: #c06020; border-color: rgba(200,90,30,0.4);  }
+
+/* Unlock buttons */
+.btn-unlock {
+  background: linear-gradient(135deg, rgba(255,248,220,0.95), rgba(255,236,180,0.95));
+  border: 1px solid rgba(210,150,60,0.55) !important;
+  animation: unlockPulse 2s ease-in-out infinite;
+}
+.btn-unlock:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(255,252,235,1), rgba(255,244,195,1));
+  border-color: rgba(200,130,40,0.8) !important;
+}
+@keyframes unlockPulse {
+  0%, 100% { box-shadow: 0 3px 10px rgba(200,140,40,0.15), 0 0 0 0 rgba(210,150,60,0.4); }
+  50%       { box-shadow: 0 3px 10px rgba(200,140,40,0.25), 0 0 0 6px rgba(210,150,60,0); }
+}
+
+/* Growth badge */
+#growth-chip {
+  position: absolute; top: 134px; left: 16px;
+  background: rgba(255,248,235,0.8);
+  border: 1px solid rgba(180,130,70,0.2);
+  border-radius: 24px; padding: 5px 14px;
+  color: #7a9a50; font-size: 12px;
+  backdrop-filter: blur(6px);
+}
+
+/* Personality chip */
+#personality-chip {
+  position: absolute; top: 172px; left: 16px;
+  background: rgba(255,248,235,0.8);
+  border: 1px solid rgba(180,130,70,0.2);
+  border-radius: 24px; padding: 5px 14px;
+  color: #9a6a2a; font-size: 12px;
+  backdrop-filter: blur(6px);
+}
+
+/* Choice buttons */
+#popup-choices {
+  display: none; gap: 10px; margin-top: 18px;
+}
+.choice-btn {
+  flex: 1; justify-content: center;
+  font-size: 13px; padding: 10px 12px;
+  background: rgba(255,248,235,0.95) !important;
+  border-color: rgba(180,130,70,0.4) !important;
+  border-radius: 14px !important;
+  cursor: pointer; transition: all 0.18s;
+  font-family: inherit; color: #7a4520;
+  box-shadow: 0 2px 8px rgba(120,70,20,0.1);
+}
+.choice-btn:hover {
+  background: rgba(255,236,195,0.98) !important;
+  border-color: rgba(200,140,60,0.65) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 16px rgba(120,70,20,0.18) !important;
+}
+.choice-btn.chosen {
+  background: linear-gradient(135deg, rgba(200,150,60,0.2), rgba(220,170,80,0.25)) !important;
+  border-color: rgba(200,140,50,0.7) !important;
+}
+#popup-result {
+  display: none;
+  margin-top: 14px; padding: 12px 16px;
+  background: rgba(180,130,70,0.08);
+  border-left: 3px solid #c8903a;
+  border-radius: 0 10px 10px 0;
+  font-size: 13px; color: #7a5030; line-height: 1.8;
+}
+
+/* Particles */
+.particle {
+  position: fixed; pointer-events: none; font-size: 22px;
+  animation: floatUp 1.4s cubic-bezier(0.2,0.8,0.6,1) forwards;
+  z-index: 200;
+}
+@keyframes floatUp {
+  0%   { transform: translateY(0) scale(0.8) rotate(-5deg); opacity: 1; }
+  60%  { opacity: 1; }
+  100% { transform: translateY(-100px) scale(1.3) rotate(8deg); opacity: 0; }
+}
+</style>
+</head>
+<body>
+
+<div id="game-wrap">
+  <canvas id="bg-canvas" width="800" height="560"></canvas>
+  <canvas id="game-canvas" width="800" height="560"></canvas>
+
+  <div id="day-chip">第 1 月</div>
+  <div id="state-chip">😿 陌生</div>
+  <div id="mood-chip" class="mood-neutral">😐 平静</div>
+  <div id="growth-chip">🐾 幼猫期</div>
+  <div id="personality-chip">✨ 性格待定</div>
+
+  <div id="hud">
+    <div class="stat-row">
+      <span class="stat-label">❤️ 信任</span>
+      <div class="stat-bar-bg"><div class="stat-bar" id="bar-trust" style="width:20%"></div></div>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">🌿 健康</span>
+      <div class="stat-bar-bg"><div class="stat-bar" id="bar-health" style="width:80%"></div></div>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">🐟 饱食</span>
+      <div class="stat-bar-bg"><div class="stat-bar" id="bar-hunger" style="width:60%"></div></div>
+    </div>
+  </div>
+
+  <div id="actions">
+    <button class="btn" id="btn-feed"  onclick="action('feed')">🐟 喂食 <span class="btn-cd" id="cd-feed"></span></button>
+    <button class="btn" id="btn-play"  onclick="action('play')">🧶 玩耍 <span class="btn-cd" id="cd-play"></span></button>
+    <button class="btn" id="btn-pet"   onclick="action('pet')">🤚 抚摸 <span class="btn-cd" id="cd-pet"></span></button>
+    <button class="btn" id="btn-sleep" onclick="action('sleep')">🌙 休息 <span class="btn-cd" id="cd-sleep"></span></button>
+  </div>
+</div>
+
+<div id="popup">
+  <div id="popup-box" onclick="event.stopPropagation()">
+    <div id="popup-icon">🐱</div>
+    <div id="popup-title"></div>
+    <div id="popup-body"></div>
+    <div id="popup-tip" style="display:none;margin-top:14px;padding:10px 14px;background:rgba(180,130,70,0.1);border-left:3px solid #c8903a;border-radius:0 8px 8px 0;font-size:12px;color:#8b5e2a;line-height:1.8;"></div>
+    <div id="popup-choices"></div>
+    <div id="popup-result"></div>
+    <button id="popup-btn" onclick="closePopup()">明白了 ✨</button>
+  </div>
+</div>
+
+<script>
+// no image loading needed — cat is fully code-drawn
+
+// ─── Game state ───────────────────────────────────────────────────────────────
+const STATS = { trust: 20, health: 80, hunger: 60 };
+let month = 1, gameOver = false;   // 1–12 months
+let eventLock = false;
+let actionsToday = 0;
+let catMood = 'neutral';
+
+// ─── Personality system ───────────────────────────────────────────────────────
+const PERSONALITIES = {
+  shy:    {
+    name:'🙈 胆小猫',
+    desc:'它比一般猫咪更敏感，建立信任需要更多耐心——但一旦信任你，就不会轻易离开。',
+    trustMult: 0.7, playMult: 1.0, sleepMult: 1.0, feedMult: 1.0, wanderBonus: -0.1,
+  },
+  lively: {
+    name:'🐾 活泼猫',
+    desc:'它一进家门就开始到处乱跑！玩耍效果极好，但喂饭？它似乎不太感兴趣。',
+    trustMult: 1.0, playMult: 1.4, sleepMult: 1.0, feedMult: 0.85, wanderBonus: 0.15,
+  },
+  lazy:   {
+    name:'😴 慵懒猫',
+    desc:'它找到最软的地方躺下，开始发呆。睡眠对它疗效加倍，但想让它玩耍可要费点劲。',
+    trustMult: 1.0, playMult: 0.75, sleepMult: 1.5, feedMult: 1.0, wanderBonus: -0.15,
+  },
+};
+let catPersonality = null; // assigned on first closePopup
+let personalityIntroShown = false;
+
+const COOLDOWNS = { feed: 0, play: 0, pet: 0, sleep: 0 };
+const CD_TIMES   = { feed: 8, play: 10, pet: 6, sleep: 20 };
+
+const BOWL = { x: 190, y: 400 };
+const TOY  = { x: 590, y: 380 };
+const BED  = { x: 400, y: 450 };
+
+const CAT = {
+  x: 400, y: 340,
+  state: 'idle', stateTimer: 3,
+  walkFrame: 0, walkFrameTimer: 0,
+  facingLeft: false, targetX: null, targetY: null,
+  reactEmoji: '', glowColor: null,
+};
+
+// ─── Growth stages ────────────────────────────────────────────────────────────
+// catScale 随月份线性增长: 幼猫(1-3月)→少年猫(4-7月)→成年猫(8-12月)
+function updateCatScale() {
+  catScale = 0.52 + (month - 1) * (1.0 - 0.52) / 11;
+  catScale = Math.min(1.0, Math.max(0.52, catScale));
+}
+
+function getGrowthLabel() {
+  if(month <= 3)  return '🐾 幼猫期';
+  if(month <= 7)  return '🌱 少年期';
+  return '🐱 成年期';
+}
+
+// ─── Phase helper ─────────────────────────────────────────────────────────────
+function getPhase() {
+  if(month <= 4)  return 'stranger';   // 1-4月 陌生期
+  if(month <= 8)  return 'curious';    // 5-8月 试探期
+  return 'bonded';                     // 9-12月 亲密期
+}
+
+// ─── Story: monthly narrative lines ───────────────────────────────────────────
+const STORY = [
+  { month:1,  icon:'🏠', text:'一只小小的猫咪，第一次来到你家。它躲在纸箱里，只有尾巴尖在微微颤抖。' },
+  { month:2,  icon:'🌙', text:'凌晨，你听到细碎的爪声——它开始偷偷探索这个新家。' },
+  { month:3,  icon:'🐾', text:'它第一次在你脚边停下来，嗅了嗅你的袜子，然后跑开了。' },
+  { month:4,  icon:'🪟', text:'晴天下午，它发现了窗台上的阳光。你们第一次同处一室而互不打扰。' },
+  { month:5,  icon:'👁️', text:'它开始用眼神追踪你的每一个动作——不再是警惕，更像是好奇。' },
+  { month:6,  icon:'🧶', text:'它叼着小玩具在你脚边放下，然后后退两步，看着你。这是邀请。' },
+  { month:7,  icon:'😸', text:'第一声咕噜。轻微，短促，像小发动机刚刚启动。你们都愣住了一秒。' },
+  { month:8,  icon:'💬', text:'它用额头轻轻顶了你的手背，停留了两秒，就离开了。但你记得那两秒。' },
+  { month:9,  icon:'💕', text:'它跳上沙发，在你旁边蜷下来睡着了。呼吸声细如蚕丝。' },
+  { month:10, icon:'😻', text:'咕噜声越来越长，越来越响。你的抚摸让它完全放松。' },
+  { month:11, icon:'🌈', text:'它开始在你难过时凑过来，用脑袋蹭你的手。好像它能感觉到。' },
+  { month:12, icon:'🏮', text:'一年了。它走过来，把整个下巴搭在你手上，眯眼看你。这就是信任。' },
+];
+
+// ─── Random events ─────────────────────────────────────────────────────────────
+const EVENTS = [
+  // ── 陌生期 (1-4月) ──
+  {
+    phases:['stranger'],
+    emoji:'🙈', title:'它躲起来了',
+    desc:'你走进房间，它立刻钻进床底，只有两只小眼睛在黑暗里发光。你该怎么做？',
+    choices: [
+      {
+        label: '轻声等待 🤫',
+        result: '你在床边坐下，轻声哼着歌，没有靠近。过了一会儿，它悄悄把头探出来打量你。',
+        effect: ()=>{ STATS.trust = Math.min(100, STATS.trust + 5); },
+        catReact: '👀', catGlow: null,
+      },
+      {
+        label: '追过去找它 🔦',
+        result: '它吓得缩到最里面，好久不敢出来。你意识到，有些信任是急不来的。',
+        effect: ()=>{ STATS.trust = Math.max(0, STATS.trust - 6); },
+        catReact: '😨', catGlow: '#a07050',
+      },
+    ],
+    tip:'🐾 小知识：不要追着去找它。给猫咪安全的藏身之处，让它主动出来，是建立信任的第一步。',
+  },
+  {
+    phases:['stranger'],
+    emoji:'🤧', title:'一个小喷嚏',
+    desc:'"阿嚏！"它从角落里冒出来，把自己都吓到了，然后若无其事地走开。',
+    tip:'😸 偶尔喷嚏是正常的。但如果持续流鼻涕，记得带它看医生哦。',
+    effect:()=>{},
+    catReact:'😅', catGlow:null,
+  },
+  {
+    phases:['stranger'],
+    emoji:'👀', title:'它在观察你',
+    desc:'你坐在那里，感觉被凝视。回头——它已经盯着你看了五分钟。',
+    tip:'👁️ 猫用长时间凝视来评估威胁。试着慢慢眨眼，传递"我无意伤害你"的信号。',
+    effect:()=>{ STATS.trust=Math.min(100,STATS.trust+2); },
+    catReact:'🤔', catGlow:null,
+  },
+  {
+    phases:['stranger'],
+    emoji:'🌙', title:'夜间探险',
+    desc:'你发现茶几被轻轻移动了，几样东西换了位置。它昨晚做了自己的地图。',
+    tip:'🌙 猫是晨昏性动物，夜间更有安全感。独自探索是适应新环境的重要过程。',
+    effect:()=>{ STATS.trust=Math.min(100,STATS.trust+3); },
+    catReact:'🌙', catGlow:null,
+  },
+
+  // ── 试探期 (5-8月) ──
+  {
+    phases:['curious'],
+    emoji:'💧', title:'水杯事件',
+    desc:'"啪。"你回头，它坐在推翻的水杯旁，一脸无辜地看着你。你该怎么反应？',
+    choices: [
+      {
+        label: '温柔安抚 🤗',
+        result: '你弯下腰，温柔地说"没事的"，它歪头看你，尾巴轻轻摇了摇。',
+        effect: ()=>{ STATS.trust = Math.min(100, STATS.trust + 7); },
+        catReact: '😊', catGlow: '#e89040',
+      },
+      {
+        label: '大声斥责 😠',
+        result: '它立刻跑开，在床底躲了半小时。推翻水杯对它来说只是好奇，不是故意的。',
+        effect: ()=>{ STATS.trust = Math.max(0, STATS.trust - 9); STATS.health = Math.max(0, STATS.health - 3); },
+        catReact: '😨', catGlow: '#a07050',
+      },
+    ],
+    tip:'🐱 推落物品是测试物理规律，也是索取注意力的方式——不要大声斥责。',
+  },
+  {
+    phases:['curious'],
+    emoji:'🧶', title:'它带来了礼物',
+    desc:'它叼着毛线球走到你一步之外，放下，退后，等着你。这是邀请。',
+    tip:'🎁 猫把"猎物"带给你，说明它把你当成信任的同伴。这是进步的信号！',
+    effect:()=>{ STATS.trust=Math.min(100,STATS.trust+5); STATS.hunger=Math.max(0,STATS.hunger-3); },
+    catReact:'🎁', catGlow:'#e89040',
+  },
+  {
+    phases:['curious'],
+    emoji:'🚶', title:'跟班猫',
+    desc:'你去倒水，它在三步后面跟着；你停，它停，假装在看别处。',
+    tip:'🐾 猫跟随是依恋的开始，但会用"假装不在乎"掩盖好奇心——这很猫。',
+    effect:()=>{ STATS.trust=Math.min(100,STATS.trust+4); },
+    catReact:'🥸', catGlow:null,
+  },
+  {
+    phases:['curious'],
+    emoji:'🪑', title:'占领行动',
+    desc:'你的椅子被占了。它蜷在上面，一脸理所当然。你该怎么做？',
+    choices: [
+      {
+        label: '另找个座位 😌',
+        result: '你搬了把椅子坐在旁边，它打了个哈欠，翻了个身继续睡。你们共处一室，互不打扰。',
+        effect: ()=>{ STATS.trust = Math.min(100, STATS.trust + 7); STATS.health = Math.min(100, STATS.health + 3); },
+        catReact: '😌', catGlow: '#e89040',
+      },
+      {
+        label: '把它抱开 😅',
+        result: '它被抱起时僵了一下，落地后甩了甩尾巴走开了。你坐上了椅子，但感觉有点愧疚。',
+        effect: ()=>{ STATS.trust = Math.max(0, STATS.trust - 3); },
+        catReact: '😤', catGlow: null,
+      },
+    ],
+    tip:'💺 猫喜欢睡主人用过的地方，是因为那里有熟悉的气味。这是信任的体现。',
+  },
+  {
+    phases:['curious'],
+    emoji:'😹', title:'磨爪事件',
+    desc:'书架留下了几道爪痕。它正在旁边心满意足地磨着爪子，该怎么处理？',
+    choices: [
+      {
+        label: '温和转移 🪵',
+        result: '你轻声引导它到猫抓板，用零食鼓励它。它嗅了嗅，留下了第一道痕迹。',
+        effect: ()=>{ STATS.trust = Math.min(100, STATS.trust + 4); },
+        catReact: '😏', catGlow: null,
+      },
+      {
+        label: '喷水瓶惩罚 💦',
+        result: '"嗖——"它跳开，湿了半边脸，用不解的眼神盯着你。它不明白自己做错了什么。',
+        effect: ()=>{ STATS.trust = Math.max(0, STATS.trust - 7); STATS.health = Math.max(0, STATS.health - 2); },
+        catReact: '😢', catGlow: '#a07050',
+      },
+    ],
+    tip:'🐾 磨爪是本能——用于保持爪子锋利、标记领地。有了猫抓板就能保护家具。',
+  },
+
+  // ── 亲密期 (9-12月) ──
+  {
+    phases:['bonded'],
+    emoji:'🌅', title:'晒太阳的下午',
+    desc:'你们在窗边的阳光里各自发呆。谁都没有开口，但感觉非常好。',
+    tip:'☀️ 猫需要晒太阳来合成维生素D、调节体温。和猫一起发呆，是最高级的陪伴。',
+    effect:()=>{ STATS.trust=Math.min(100,STATS.trust+5); STATS.health=Math.min(100,STATS.health+5); },
+    catReact:'😊', catGlow:'#e8b040',
+  },
+  {
+    phases:['bonded'],
+    emoji:'🎶', title:'真正的咕噜声',
+    desc:'你抚摸它，感觉到胸腔里的震动——是完整的、满足的咕噜，像小发动机。',
+    tip:'🎶 猫咕噜的频率在25-150赫兹，被证明能促进骨骼愈合——对你也有放松效果！',
+    effect:()=>{ STATS.trust=Math.min(100,STATS.trust+8); STATS.health=Math.min(100,STATS.health+5); },
+    catReact:'💕', catGlow:'#e87080',
+  },
+  {
+    phases:['bonded'],
+    emoji:'🎁', title:'最好的礼物',
+    desc:'它把一片树叶郑重地放在你脚边，抬头认真地看着你。在它的世界里，这是最珍贵的东西。',
+    choices: [
+      {
+        label: '接受并夸它 🥰',
+        result: '"谢谢你！"你弯下腰捡起树叶，认真地看了看。它的尾巴竖得笔直，转了一圈。',
+        effect: ()=>{ STATS.trust = Math.min(100, STATS.trust + 10); },
+        catReact: '😻', catGlow: '#e87080',
+      },
+      {
+        label: '嫌脏拿走 😬',
+        result: '你皱眉把树叶扔掉，洗了手。它低着头，离开了。它不知道哪里出了问题。',
+        effect: ()=>{ STATS.trust = Math.max(0, STATS.trust - 10); },
+        catReact: '😢', catGlow: '#a07050',
+      },
+    ],
+    tip:'🎁 猫把"猎物"分享给你，意味着你在它心中地位极高——它想和最重要的人分享。',
+  },
+  {
+    phases:['bonded'],
+    emoji:'💤', title:'一起午睡',
+    desc:'你在看书，它跳上沙发，在你腿边蜷成一团睡着了。呼吸声轻轻的。',
+    tip:'😴 猫睡着时最脆弱。选择在你身边入睡，意味着它完全信任你会保护它。',
+    effect:()=>{ STATS.trust=Math.min(100,STATS.trust+6); STATS.health=Math.min(100,STATS.health+4); },
+    catReact:'💤', catGlow:'#80b8d0',
+  },
+  {
+    phases:['bonded'],
+    emoji:'🤝', title:'猫咪之吻',
+    desc:'你慢慢眨眼——它停顿了三秒，也慢慢眨了回来。你们有了自己的语言。',
+    tip:'👁️ "慢眨眼"是猫表达信任与爱的方式。试着对陌生猫慢眨眼，它也许会回应你！',
+    effect:()=>{ STATS.trust=Math.min(100,STATS.trust+9); },
+    catReact:'😻', catGlow:'#e87080',
+  },
+];
+
+// ─── Knowledge base (now triggered by actions, not by day) ────────────────────
+const ACTION_TIPS = {
+  feed_first:  { icon:'🐟', text:'猫是严格肉食动物，牛磺酸对心脏至关重要——只能从肉类中获取。' },
+  play_first:  { icon:'🧶', text:'玩耍对猫来说是模拟捕猎，每天15分钟能显著减少焦虑、增强信任。' },
+  pet_refused: { icon:'😾', text:'信任不够时强迫触碰会适得其反。先用食物和玩耍建立联结吧。' },
+  pet_first:   { icon:'💆', text:'猫喜欢被摸头顶和脸颊腺体，那里有它们的气味腺，蹭你=标记你为"我的人"。' },
+  sleep_first: { icon:'😴', text:'猫每天需要12-16小时睡眠。充足的休息让它保持那份优雅与敏捷。' },
+  hunger_low:  { icon:'⚠️', text:'猫咪饿了超过24小时可能引发肝脏问题。保持规律喂食非常重要！' },
+};
+const shownTips = new Set();
+
+// ─── Unlock interactions ───────────────────────────────────────────────────────
+const UNLOCKS = [
+  {
+    id: 'groom',
+    label: '🪮 梳毛',
+    cdKey: 'groom', cd: 14,
+    condition: () => STATS.trust >= 40,
+    effect: () => {
+      STATS.trust  = Math.min(100, STATS.trust + 7);
+      STATS.health = Math.min(100, STATS.health + 5);
+      CAT.state = 'react'; CAT.stateTimer = 3;
+      CAT.reactEmoji = '🌸'; CAT.glowColor = '#e87090';
+      later(3000, () => { endAnim(); spawnParticles('🌸', 3); clampStats(); updateHUD(); updateStateChip(); checkUnlocks(); });
+    },
+    toast: { icon:'🪮', text:'猫咪享受梳毛！定期梳理能减少毛球，还能增进你们的感情。' },
+  },
+  {
+    id: 'callname',
+    label: '📣 叫名字',
+    cdKey: 'callname', cd: 9,
+    condition: () => STATS.trust >= 55,
+    effect: () => {
+      STATS.trust = Math.min(100, STATS.trust + 5);
+      CAT.reactEmoji = '👂'; CAT.glowColor = '#d4a040';
+      later(2500, () => { endAnim(); spawnParticles('💬', 2); clampStats(); updateHUD(); updateStateChip(); checkUnlocks(); });
+    },
+    toast: { icon:'📣', text:'猫咪认识自己的名字！经常温柔地呼唤它，会让它把声音与安全感联系在一起。' },
+  },
+  {
+    id: 'newtoy',
+    label: '🎀 新玩具',
+    cdKey: 'newtoy', cd: 18,
+    condition: () => STATS.trust >= 70 && month >= 6,
+    effect: () => {
+      STATS.trust  = Math.min(100, STATS.trust + 9);
+      STATS.health = Math.min(100, STATS.health + 4);
+      STATS.hunger = Math.max(0,   STATS.hunger - 6);
+      CAT.targetX = TOY.x; CAT.targetY = TOY.y - 12; CAT.state = 'walk';
+      later(1500, () => { CAT.state='play'; CAT.stateTimer=4; CAT.reactEmoji='🎉'; CAT.glowColor='#d4904a'; });
+      later(5500, () => { endAnim(); spawnParticles('🎀', 4); clampStats(); updateHUD(); updateStateChip(); checkUnlocks(); });
+    },
+    toast: { icon:'🎀', text:'猫咪对新玩具充满好奇！新奇的刺激让猫保持活跃的心智。' },
+  },
+  {
+    id: 'slowblink',
+    label: '😌 慢眨眼',
+    cdKey: 'slowblink', cd: 12,
+    condition: () => STATS.trust >= 80,
+    effect: () => {
+      STATS.trust = Math.min(100, STATS.trust + 6);
+      CAT.reactEmoji = '😻'; CAT.glowColor = '#e87090';
+      later(3000, () => { endAnim(); spawnParticles('✨', 4); clampStats(); updateHUD(); updateStateChip(); checkUnlocks(); });
+    },
+    toast: { icon:'😌', text:'猫咪的慢眨眼是爱的信号！用慢眨眼回应它，你们有了属于自己的语言。' },
+  },
+];
+const unlockedIds = new Set();
+
+// ─── Canvas ───────────────────────────────────────────────────────────────────
+const bgCanvas = document.getElementById('bg-canvas');
+const bgCtx    = bgCanvas.getContext('2d');
+const canvas   = document.getElementById('game-canvas');
+const ctx      = canvas.getContext('2d');
+const W = 800, H = 560;
+
+// ─── Background ───────────────────────────────────────────────────────────────
+(function drawBackground() {
+  const c = bgCtx;
+
+  // Warm cream wall
+  const wallGrad = c.createLinearGradient(0, 0, W, H);
+  wallGrad.addColorStop(0,   '#f5e8c8');
+  wallGrad.addColorStop(0.4, '#eedbb0');
+  wallGrad.addColorStop(1,   '#e8c898');
+  c.fillStyle = wallGrad; c.fillRect(0, 0, W, H);
+
+  // Subtle wall texture lines
+  c.strokeStyle = 'rgba(160,100,40,0.07)'; c.lineWidth = 0.8;
+  for(let y = 0; y < 310; y += 55) { c.beginPath(); c.moveTo(0,y); c.lineTo(W,y); c.stroke(); }
+
+  // Warm floor
+  const floorGrad = c.createLinearGradient(0, 290, 0, H);
+  floorGrad.addColorStop(0, '#d4965a'); floorGrad.addColorStop(1, '#c07840');
+  c.fillStyle = floorGrad; c.fillRect(0, 300, W, H-300);
+
+  // Floor wood grain
+  c.strokeStyle = 'rgba(100,50,10,0.08)'; c.lineWidth = 1;
+  for(let y = 320; y < H; y += 28) { c.beginPath(); c.moveTo(0,y); c.lineTo(W,y); c.stroke(); }
+  c.strokeStyle = 'rgba(100,50,10,0.12)'; c.lineWidth = 1.5;
+  [120,280,440,600].forEach(x=>{ c.beginPath(); c.moveTo(x,300); c.lineTo(x+30,H); c.stroke(); });
+
+  // Baseboard
+  const joinGrad = c.createLinearGradient(0,292,0,316);
+  joinGrad.addColorStop(0,'rgba(120,60,10,0.3)'); joinGrad.addColorStop(1,'rgba(120,60,10,0)');
+  c.fillStyle=joinGrad; c.fillRect(0,292,W,24);
+  c.fillStyle='#e8d0a0'; c.fillRect(0,295,W,12);
+  c.strokeStyle='rgba(160,100,40,0.25)'; c.lineWidth=1; c.strokeRect(0,295,W,12);
+
+  // Window light splash
+  const winLight = c.createRadialGradient(620,0,10,620,60,260);
+  winLight.addColorStop(0,'rgba(255,220,140,0.28)'); winLight.addColorStop(1,'rgba(255,200,100,0)');
+  c.fillStyle=winLight; c.fillRect(0,0,W,300);
+
+  drawWindow(c,550,30,200,190);
+  drawShelf(c,15,50,115,230);
+  drawRug(c,400,430,320,80);
+  drawBowl(c,BOWL.x,BOWL.y);
+  drawYarn(c,TOY.x,TOY.y);
+  drawBed(c,BED.x,BED.y);
+})();
+
+function drawWindow(c,x,y,w,h){
+  c.fillStyle='#c8a060'; c.beginPath(); c.roundRect(x-8,y-8,w+16,h+16,6); c.fill();
+  const sky=c.createLinearGradient(x,y,x,y+h);
+  sky.addColorStop(0,'#b8d4e8'); sky.addColorStop(0.6,'#d4e8f0'); sky.addColorStop(1,'#e8f4e0');
+  c.fillStyle=sky; c.beginPath(); c.roundRect(x,y,w,h,3); c.fill();
+  c.fillStyle='rgba(80,120,60,0.35)';
+  c.beginPath(); c.arc(x+40,y+h-10,50,0,Math.PI*2); c.fill();
+  c.beginPath(); c.arc(x+80,y+h-20,40,0,Math.PI*2); c.fill();
+  const sunG=c.createRadialGradient(x+w-30,y+25,0,x+w-30,y+25,40);
+  sunG.addColorStop(0,'rgba(255,230,100,0.9)'); sunG.addColorStop(0.4,'rgba(255,210,80,0.4)'); sunG.addColorStop(1,'rgba(255,200,60,0)');
+  c.fillStyle=sunG; c.fillRect(x,y,w,h);
+  c.strokeStyle='#b89050'; c.lineWidth=3;
+  c.beginPath(); c.moveTo(x+w/2,y); c.lineTo(x+w/2,y+h); c.moveTo(x,y+h*0.55); c.lineTo(x+w,y+h*0.55); c.stroke();
+  drawCurtain(c,x-8,y-8,22,h+16,true); drawCurtain(c,x+w-14,y-8,22,h+16,false);
+  const beam=c.createLinearGradient(x+w/2,y+h+8,x+w/2,420);
+  beam.addColorStop(0,'rgba(255,220,120,0.18)'); beam.addColorStop(1,'rgba(255,220,120,0)');
+  c.fillStyle=beam; c.beginPath(); c.moveTo(x+40,y+h+8); c.lineTo(x+w-40,y+h+8); c.lineTo(x+w+20,420); c.lineTo(x-20,420); c.closePath(); c.fill();
+  const sheen=c.createLinearGradient(x,y,x+w*0.4,y+h*0.4);
+  sheen.addColorStop(0,'rgba(255,255,255,0.2)'); sheen.addColorStop(1,'rgba(255,255,255,0)');
+  c.fillStyle=sheen; c.beginPath(); c.roundRect(x,y,w,h,3); c.fill();
+}
+function drawCurtain(c,x,y,w,h,left){
+  const cg=c.createLinearGradient(x,0,x+w,0);
+  if(left){cg.addColorStop(0,'#e8b090');cg.addColorStop(1,'#d49070');}
+  else{cg.addColorStop(0,'#d49070');cg.addColorStop(1,'#e8b090');}
+  c.fillStyle=cg; c.beginPath(); c.moveTo(x,y);
+  for(let i=0;i<=h;i+=20){const wave=Math.sin(i/30)*4; c.lineTo(x+w+wave,y+i);}
+  c.lineTo(x,y+h); c.closePath(); c.fill();
+  c.strokeStyle='rgba(160,80,30,0.2)'; c.lineWidth=1;
+  for(let i=8;i<h;i+=20){c.beginPath();c.moveTo(x+w/2,y+i);c.lineTo(x+w/2+3,y+i+10);c.stroke();}
+}
+function drawShelf(c,x,y,w,h){
+  c.fillStyle='#c49060'; c.fillRect(x,y,w,h);
+  c.fillStyle='#a87040'; c.fillRect(x,y,8,h+8); c.fillRect(x+w-8,y,8,h+8);
+  [0,70,140,h].forEach(off=>{
+    const pg=c.createLinearGradient(0,y+off,0,y+off+10);
+    pg.addColorStop(0,'#c89060'); pg.addColorStop(1,'#b88040');
+    c.fillStyle=pg; c.fillRect(x,y+off,w,10);
+    c.strokeStyle='rgba(100,50,10,0.2)'; c.lineWidth=0.5; c.strokeRect(x,y+off,w,10);
+  });
+  const bk1=[['#e8756a','#c85550'],['#6a9eb8','#4a7e98'],['#7ab880','#5a9860'],['#e0a040','#c08020'],['#9880c0','#7860a0']];
+  let bx=x+10;
+  bk1.forEach(([c1,c2],i)=>{
+    const bw=14+(i%2)*4,bh=54,bg=c.createLinearGradient(bx,0,bx+bw,0);
+    bg.addColorStop(0,c1);bg.addColorStop(1,c2);c.fillStyle=bg;c.fillRect(bx,y+12,bw,bh);
+    c.fillStyle='rgba(0,0,0,0.12)';c.fillRect(bx,y+12,2,bh);bx+=bw+3;
+  });
+  const bk2=[['#d07858','#b05838'],['#60a888','#408868'],['#c0709a','#a05078'],['#90a838','#708018']];
+  bx=x+8;
+  bk2.forEach(([c1,c2],i)=>{
+    const bw=16+(i%3)*4,bh=54,bg=c.createLinearGradient(bx,0,bx+bw,0);
+    bg.addColorStop(0,c1);bg.addColorStop(1,c2);c.fillStyle=bg;c.fillRect(bx,y+82,bw,bh);
+    c.fillStyle='rgba(0,0,0,0.1)';c.fillRect(bx,y+82,2,bh);bx+=bw+4;
+  });
+  c.fillStyle='#8b6040';c.fillRect(x+72,y+152,8,22);
+  c.fillStyle='#a0c870';c.beginPath();c.arc(x+76,y+148,14,0,Math.PI*2);c.fill();
+  c.fillStyle='#80a850';c.beginPath();c.arc(x+70,y+152,9,0,Math.PI*2);c.fill();
+  c.fillStyle='rgba(150,200,80,0.4)';c.beginPath();c.arc(x+82,y+150,8,0,Math.PI*2);c.fill();
+  c.fillStyle='#c07850';c.beginPath();c.roundRect(x+69,y+160,14,16,3);c.fill();
+}
+function drawRug(c,cx,cy,rw,rh){
+  const rg=c.createRadialGradient(cx,cy,10,cx,cy,rw/2);
+  rg.addColorStop(0,'rgba(200,120,70,0.5)');rg.addColorStop(0.7,'rgba(180,90,50,0.4)');rg.addColorStop(1,'rgba(160,70,30,0.2)');
+  c.fillStyle=rg;c.beginPath();c.ellipse(cx,cy,rw/2,rh/2,0,0,Math.PI*2);c.fill();
+  c.strokeStyle='rgba(200,140,80,0.35)';c.lineWidth=2;
+  c.beginPath();c.ellipse(cx,cy,rw/2-8,rh/2-6,0,0,Math.PI*2);c.stroke();
+  c.beginPath();c.ellipse(cx,cy,rw/2-20,rh/2-12,0,0,Math.PI*2);c.stroke();
+  c.fillStyle='rgba(210,150,80,0.4)';
+  for(let a=0;a<Math.PI*2;a+=0.4){const fx=cx+Math.cos(a)*(rw/2-3),fy=cy+Math.sin(a)*(rh/2-3);c.beginPath();c.arc(fx,fy,2,0,Math.PI*2);c.fill();}
+}
+function drawBowl(c,x,y){
+  c.fillStyle='rgba(100,50,10,0.2)';c.beginPath();c.ellipse(x,y+6,30,9,0,0,Math.PI*2);c.fill();
+  const bg=c.createRadialGradient(x-5,y-4,2,x,y,32);bg.addColorStop(0,'#f0e0c8');bg.addColorStop(1,'#c8a880');
+  c.fillStyle=bg;c.beginPath();c.ellipse(x,y,30,11,0,0,Math.PI*2);c.fill();
+  const fg=c.createRadialGradient(x-4,y-4,1,x,y-2,22);fg.addColorStop(0,'#e8904a');fg.addColorStop(1,'#c87030');
+  c.fillStyle=fg;c.beginPath();c.ellipse(x,y-2,20,7,0,0,Math.PI*2);c.fill();
+  c.fillStyle='rgba(255,255,255,0.5)';c.beginPath();c.ellipse(x-8,y-4,5,2,-0.3,0,Math.PI*2);c.fill();
+}
+function drawYarn(c,x,y){
+  c.fillStyle='rgba(100,50,10,0.2)';c.beginPath();c.ellipse(x,y+16,15,5,0,0,Math.PI*2);c.fill();
+  const r=16,yg=c.createRadialGradient(x-4,y-5,2,x,y,r);
+  yg.addColorStop(0,'#f09060');yg.addColorStop(1,'#d06030');
+  c.fillStyle=yg;c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.fill();
+  c.strokeStyle='rgba(255,220,180,0.4)';c.lineWidth=1.5;
+  for(let a=0;a<Math.PI*2;a+=0.5){c.beginPath();c.arc(x,y,r,a,a+0.32);c.stroke();}
+  c.fillStyle='rgba(255,255,255,0.3)';c.beginPath();c.ellipse(x-5,y-5,5,3,-0.4,0,Math.PI*2);c.fill();
+}
+function drawBed(c,x,y){
+  c.fillStyle='rgba(100,50,10,0.25)';c.beginPath();c.ellipse(x,y+6,52,14,0,0,Math.PI*2);c.fill();
+  const bg=c.createRadialGradient(x,y-5,5,x,y+5,52);
+  bg.addColorStop(0,'#e8c090');bg.addColorStop(0.6,'#d4a060');bg.addColorStop(1,'#c08040');
+  c.fillStyle=bg;c.beginPath();c.ellipse(x,y,50,19,0,0,Math.PI*2);c.fill();
+  c.strokeStyle='rgba(180,120,40,0.4)';c.lineWidth=1.5;c.beginPath();c.ellipse(x,y,50,19,0,0,Math.PI*2);c.stroke();
+  const pg=c.createLinearGradient(x-18,y-20,x+18,y-5);
+  pg.addColorStop(0,'#f5ddb0');pg.addColorStop(1,'#e0b870');
+  c.fillStyle=pg;c.beginPath();c.ellipse(x,y-8,24,9,0,0,Math.PI*2);c.fill();
+  c.fillStyle='rgba(255,255,255,0.2)';c.beginPath();c.ellipse(x,y-12,14,4,0,0,Math.PI*2);c.fill();
+}
+
+// ─── Cat rendering ────────────────────────────────────────────────────────────
+// catScale: 0.5=幼猫 → 1.0=成年猫，由外部根据月份控制
+let catScale = 0.55;
+
+// Tabby palette
+const FUR1   = '#c8a06a';
+const FUR2   = '#b08850';
+const STRIPE = '#7a5030';
+const BELLY  = '#f0ddb8';
+const NOSE   = '#e87090';
+const EYE    = '#3a6e28';
+
+function drawCat(c, cat, trust) {
+  const { x, y, state, walkFrame, facingLeft, reactEmoji, glowColor } = cat;
+  const t = Date.now() / 1000;
+
+  c.save();
+  if(facingLeft) { c.translate(x,0); c.scale(-1,1); c.translate(-x,0); }
+
+  // Shadow (scales with cat size)
+  c.fillStyle = 'rgba(100,50,10,0.18)';
+  c.beginPath();
+  c.ellipse(x, y+6, 42*catScale, 13*catScale, 0, 0, Math.PI*2);
+  c.fill();
+
+  // Glow
+  const gc = glowColor || (trust>=75 ? 'rgba(230,140,60,0.45)' : null);
+  if(gc) { c.shadowColor=gc; c.shadowBlur=24; }
+
+  c.save();
+  c.translate(x, y);
+  c.scale(catScale, catScale);
+
+  if(state === 'sleep') {
+    _drawSleep(c, 0, 0, t);
+  } else {
+    _drawStanding(c, 0, 0, state, walkFrame, t);
+  }
+
+  c.restore();
+  c.restore();
+
+  // Reaction bubble
+  if(reactEmoji) {
+    const bx = facingLeft ? x-60 : x+60;
+    const by = y - 85;
+    c.save();
+    c.fillStyle = 'rgba(255,249,235,0.95)';
+    c.strokeStyle = 'rgba(180,120,50,0.4)'; c.lineWidth = 1.5;
+    c.beginPath(); c.roundRect(bx-24, by-30, 48, 38, 14); c.fill(); c.stroke();
+    c.fillStyle = 'rgba(255,249,235,0.95)';
+    c.beginPath(); c.moveTo(bx-8,by+8); c.lineTo(bx,by+22); c.lineTo(bx+8,by+8); c.fill();
+    c.font='24px serif'; c.textAlign='center'; c.textBaseline='middle';
+    c.fillText(reactEmoji, bx, by-11);
+    c.restore();
+  }
+}
+
+function _drawStanding(c, cx, cy, state, walkFrame, t) {
+  const isWalk = state==='walk';
+  const isPlay = state==='play';
+  const isEat  = state==='eat';
+  const isReact= state==='react';
+  const bob = state==='idle' ? Math.sin(t*1.9)*2.5 : 0;
+  const legSwing = isWalk ? Math.sin(walkFrame*Math.PI)*8 : 0;
+
+  // ── TAIL ──
+  const tailWag = isReact ? Math.sin(t*7)*22 : isPlay ? Math.sin(t*4)*16 : Math.sin(t*1.3)*9;
+  c.save();
+  // outer tail
+  c.strokeStyle = FUR1; c.lineWidth = 10; c.lineCap = 'round'; c.lineJoin = 'round';
+  c.beginPath();
+  c.moveTo(cx+16, cy-8+bob);
+  c.bezierCurveTo(cx+50, cy+8+bob, cx+60, cy-25+tailWag, cx+46, cy-52+tailWag);
+  c.stroke();
+  // inner tail lighter tip
+  c.strokeStyle = BELLY; c.lineWidth = 5;
+  c.beginPath();
+  c.moveTo(cx+52, cy-38+tailWag); c.lineTo(cx+46, cy-52+tailWag);
+  c.stroke();
+  // tail stripe rings
+  c.fillStyle = STRIPE;
+  [[cx+28,cy-6+bob],[cx+42,cy-20+tailWag*0.6],[cx+46,cy-38+tailWag]].forEach(([tx,ty])=>{
+    c.beginPath(); c.arc(tx,ty,3.5,0,Math.PI*2); c.fill();
+  });
+  c.restore();
+
+  // ── BACK LEGS ──
+  c.fillStyle = FUR2;
+  _roundRect(c, cx+6,  cy-6+bob, 12, 20+legSwing*0.4, 6); c.fill();
+  _roundRect(c, cx+20, cy-6+bob, 12, 20-legSwing*0.4, 6); c.fill();
+  // back paw pads
+  c.fillStyle = NOSE;
+  c.beginPath(); c.ellipse(cx+12, cy+14+legSwing*0.4+bob, 6,3.5,0,0,Math.PI*2); c.fill();
+  c.beginPath(); c.ellipse(cx+26, cy+14-legSwing*0.4+bob, 6,3.5,0,0,Math.PI*2); c.fill();
+
+  // ── BODY ──
+  const bodyY = cy - 20 + bob;
+  const bodyG = c.createRadialGradient(cx-4, bodyY-10, 4, cx, bodyY, 32);
+  bodyG.addColorStop(0, '#d4b07a');
+  bodyG.addColorStop(1, FUR2);
+  c.fillStyle = bodyG;
+  c.beginPath(); c.ellipse(cx, bodyY, 26, 32, 0, 0, Math.PI*2); c.fill();
+
+  // body stripes
+  c.fillStyle = STRIPE; c.globalAlpha = 0.52;
+  [[-11,bodyY,3.5,28,0.06],[0,bodyY,3.5,30,0],[11,bodyY,3.5,28,-0.06]].forEach(([ex,ey,rxx,ryy,rot])=>{
+    c.beginPath(); c.ellipse(ex,ey,rxx,ryy,rot,0,Math.PI*2); c.fill();
+  });
+  c.globalAlpha = 1;
+
+  // belly
+  c.fillStyle = BELLY;
+  c.beginPath(); c.ellipse(cx, bodyY+4, 14, 20, 0, 0, Math.PI*2); c.fill();
+
+  // ── FRONT LEGS ──
+  const eatLean = isEat ? 9 : 0;
+  c.fillStyle = FUR1;
+  _roundRect(c, cx-20+eatLean, cy-2+bob, 12, 26-legSwing, 6); c.fill();
+  _roundRect(c, cx+8+eatLean,  cy-2+bob, 12, 26+legSwing, 6); c.fill();
+  c.fillStyle = NOSE;
+  c.beginPath(); c.ellipse(cx-14+eatLean, cy+24-legSwing+bob, 6,3.5,0,0,Math.PI*2); c.fill();
+  c.beginPath(); c.ellipse(cx+14+eatLean, cy+24+legSwing+bob, 6,3.5,0,0,Math.PI*2); c.fill();
+
+  // raised play paw
+  if(isPlay) {
+    c.fillStyle = FUR1;
+    _roundRect(c, cx-30, cy-28+bob, 12, 22, 6); c.fill();
+    c.fillStyle = NOSE;
+    c.beginPath(); c.ellipse(cx-24, cy-8+bob, 6,3.5,0,0,Math.PI*2); c.fill();
+  }
+
+  // ── HEAD ──
+  const headY = isEat ? cy-56+bob : cy-60+bob;
+  const headTilt = isPlay ? 0.12 : isEat ? 0.22 : 0;
+  c.save();
+  c.translate(cx, headY);
+  c.rotate(headTilt);
+
+  // head base
+  const headG = c.createRadialGradient(-5,-6,2, 0,0,24);
+  headG.addColorStop(0,'#dab87c'); headG.addColorStop(1,FUR2);
+  c.fillStyle = headG;
+  c.beginPath(); c.ellipse(0, 0, 22, 21, 0, 0, Math.PI*2); c.fill();
+
+  // head stripes
+  c.fillStyle = STRIPE; c.globalAlpha = 0.48;
+  c.beginPath(); c.ellipse(-9,-3, 2.8,14, 0.2,0,Math.PI*2); c.fill();
+  c.beginPath(); c.ellipse(0, -3, 2.8,15, 0,  0,Math.PI*2); c.fill();
+  c.beginPath(); c.ellipse(9, -3, 2.8,14,-0.2,0,Math.PI*2); c.fill();
+  c.globalAlpha = 1;
+
+  // cheek fluff
+  c.fillStyle = BELLY; c.globalAlpha = 0.5;
+  c.beginPath(); c.ellipse(-16,4,8,6,-0.3,0,Math.PI*2); c.fill();
+  c.beginPath(); c.ellipse(16, 4,8,6, 0.3,0,Math.PI*2); c.fill();
+  c.globalAlpha = 1;
+
+  // EARS
+  // outer ear
+  c.fillStyle = FUR2;
+  c.beginPath(); c.moveTo(-12,-12); c.lineTo(-20,-32); c.lineTo(-2,-18); c.closePath(); c.fill();
+  c.beginPath(); c.moveTo(12,-12);  c.lineTo(20,-32);  c.lineTo(2,-18);  c.closePath(); c.fill();
+  // inner ear
+  c.fillStyle = '#f0a080';
+  c.beginPath(); c.moveTo(-11,-14); c.lineTo(-17,-28); c.lineTo(-4,-19); c.closePath(); c.fill();
+  c.beginPath(); c.moveTo(11,-14);  c.lineTo(17,-28);  c.lineTo(4,-19);  c.closePath(); c.fill();
+
+  // EYES
+  const blinkFactor = (Math.sin(t*0.6) > 0.96 || isEat) ? 0.12 : 1;
+  // eye socket (dark almond shape)
+  c.fillStyle = '#1a1208';
+  c.beginPath(); c.ellipse(-8,-4, 6.5, 6.5*blinkFactor, -0.1,0,Math.PI*2); c.fill();
+  c.beginPath(); c.ellipse( 8,-4, 6.5, 6.5*blinkFactor,  0.1,0,Math.PI*2); c.fill();
+  if(blinkFactor > 0.3) {
+    // iris
+    c.fillStyle = EYE;
+    c.beginPath(); c.ellipse(-8,-4, 5, 5*blinkFactor,0,0,Math.PI*2); c.fill();
+    c.beginPath(); c.ellipse( 8,-4, 5, 5*blinkFactor,0,0,Math.PI*2); c.fill();
+    // vertical slit pupil
+    c.fillStyle = '#080808';
+    c.beginPath(); c.ellipse(-8,-4, 1.8, 4.5*blinkFactor,0,0,Math.PI*2); c.fill();
+    c.beginPath(); c.ellipse( 8,-4, 1.8, 4.5*blinkFactor,0,0,Math.PI*2); c.fill();
+    // catchlight
+    c.fillStyle = 'rgba(255,255,255,0.85)';
+    c.beginPath(); c.arc(-6,-6, 2,0,Math.PI*2); c.fill();
+    c.beginPath(); c.arc(10,-6, 2,0,Math.PI*2); c.fill();
+    // lower catchlight tiny
+    c.fillStyle = 'rgba(255,255,255,0.4)';
+    c.beginPath(); c.arc(-9,-2, 1,0,Math.PI*2); c.fill();
+    c.beginPath(); c.arc( 9,-2, 1,0,Math.PI*2); c.fill();
+  }
+
+  // NOSE — heart-shaped
+  c.fillStyle = NOSE;
+  c.beginPath();
+  c.moveTo(0,5);
+  c.bezierCurveTo(-4,2,-6,-1,-3,-2);
+  c.bezierCurveTo(-1,-3, 0,-1, 0,0);
+  c.bezierCurveTo( 0,-1, 1,-3, 3,-2);
+  c.bezierCurveTo( 6,-1, 4,2, 0,5);
+  c.fill();
+
+  // mouth
+  c.strokeStyle = '#7a3520'; c.lineWidth = 1.3; c.lineCap = 'round';
+  c.beginPath(); c.moveTo(0,5); c.quadraticCurveTo(-5,10,-8,9); c.stroke();
+  c.beginPath(); c.moveTo(0,5); c.quadraticCurveTo(5,10,8,9);   c.stroke();
+
+  // WHISKERS
+  c.strokeStyle = 'rgba(240,225,185,0.9)'; c.lineWidth = 1;
+  [[-4,2,-30,0],[-4,5,-28,5],[-4,8,-26,11],
+   [ 4,2, 30,0],[ 4,5, 28,5],[ 4,8, 26,11]].forEach(([x1,y1,x2,y2])=>{
+    c.beginPath(); c.moveTo(x1,y1); c.lineTo(x2,y2); c.stroke();
+  });
+
+  c.restore();
+}
+
+function _drawSleep(c, cx, cy, t) {
+  // Curled body
+  const bodyG = c.createRadialGradient(cx,cy-12,5, cx,cy-8,38);
+  bodyG.addColorStop(0,FUR1); bodyG.addColorStop(1,FUR2);
+  c.fillStyle = bodyG;
+  c.beginPath(); c.ellipse(cx, cy-10, 40, 23, 0,0,Math.PI*2); c.fill();
+
+  // stripes
+  c.fillStyle = STRIPE; c.globalAlpha = 0.42;
+  [-13,0,13].forEach(ox=>{
+    c.beginPath(); c.ellipse(cx+ox, cy-10, 3.2,21, ox*0.05,0,Math.PI*2); c.fill();
+  });
+  c.globalAlpha = 1;
+
+  // belly patch
+  c.fillStyle = BELLY; c.globalAlpha = 0.7;
+  c.beginPath(); c.ellipse(cx-4, cy-8, 16, 15, 0.2,0,Math.PI*2); c.fill();
+  c.globalAlpha = 1;
+
+  // head resting (right side)
+  const headG = c.createRadialGradient(cx+22,cy-10,3, cx+25,cy-8,20);
+  headG.addColorStop(0,'#dab87c'); headG.addColorStop(1,FUR2);
+  c.fillStyle = headG;
+  c.beginPath(); c.ellipse(cx+27, cy-8, 18, 15, 0.25,0,Math.PI*2); c.fill();
+
+  // cheek fluff
+  c.fillStyle = BELLY; c.globalAlpha = 0.4;
+  c.beginPath(); c.ellipse(cx+14, cy-4, 7,5,-0.3,0,Math.PI*2); c.fill();
+  c.beginPath(); c.ellipse(cx+38, cy-6, 7,5, 0.3,0,Math.PI*2); c.fill();
+  c.globalAlpha = 1;
+
+  // ears
+  c.fillStyle = FUR2;
+  c.beginPath(); c.moveTo(cx+17,-2+cy); c.lineTo(cx+13,-18+cy); c.lineTo(cx+25,-5+cy); c.closePath(); c.fill();
+  c.beginPath(); c.moveTo(cx+31,-1+cy); c.lineTo(cx+35,-16+cy); c.lineTo(cx+40,-3+cy); c.closePath(); c.fill();
+  c.fillStyle = '#f0a080';
+  c.beginPath(); c.moveTo(cx+18,cy);   c.lineTo(cx+15,-14+cy); c.lineTo(cx+24,-4+cy); c.closePath(); c.fill();
+  c.beginPath(); c.moveTo(cx+32,cy-1); c.lineTo(cx+34,-13+cy); c.lineTo(cx+39,-2+cy); c.closePath(); c.fill();
+
+  // closed eyes (happy arcs)
+  c.strokeStyle = '#5a3010'; c.lineWidth = 2; c.lineCap = 'round';
+  c.beginPath(); c.arc(cx+22, cy-8, 5, Math.PI*1.15, Math.PI*1.85); c.stroke();
+  c.beginPath(); c.arc(cx+33, cy-7, 4.5,Math.PI*1.15,Math.PI*1.85); c.stroke();
+  // tiny eyelash dots
+  c.fillStyle = '#5a3010';
+  c.beginPath(); c.arc(cx+19, cy-12, 1, 0,Math.PI*2); c.fill();
+  c.beginPath(); c.arc(cx+25, cy-13, 1, 0,Math.PI*2); c.fill();
+
+  // nose
+  c.fillStyle = NOSE;
+  c.beginPath(); c.moveTo(cx+26,cy-2); c.bezierCurveTo(cx+22,cy-5,cx+22,cy-7,cx+25,cy-7); c.bezierCurveTo(cx+26,cy-7,cx+26,cy-6,cx+26,cy-5); c.bezierCurveTo(cx+26,cy-6,cx+26,cy-7,cx+27,cy-7); c.bezierCurveTo(cx+30,cy-7,cx+30,cy-5,cx+26,cy-2); c.fill();
+
+  // tail curled around left
+  c.strokeStyle = FUR1; c.lineWidth = 9; c.lineCap = 'round';
+  c.beginPath();
+  c.moveTo(cx-12, cy+10);
+  c.bezierCurveTo(cx-42,cy+16, cx-46,cy-8, cx-30,cy-22);
+  c.stroke();
+  c.strokeStyle = BELLY; c.lineWidth = 4;
+  c.beginPath(); c.moveTo(cx-40,cy+6); c.lineTo(cx-30,cy-22); c.stroke();
+
+  // paws
+  c.fillStyle = FUR1;
+  c.beginPath(); c.ellipse(cx+15, cy+10, 14,7, 0.1,0,Math.PI*2); c.fill();
+  c.fillStyle = NOSE; c.globalAlpha = 0.65;
+  [-6,-1,4].forEach(ox=>{ c.beginPath(); c.arc(cx+10+ox,cy+13,2.5,0,Math.PI*2); c.fill(); });
+  c.globalAlpha = 1;
+
+  // ZZZ floating
+  const za = 0.55 + Math.sin(t*1.4)*0.3;
+  c.font = 'bold 14px serif'; c.textAlign = 'left'; c.textBaseline = 'alphabetic';
+  c.fillStyle = `rgba(120,80,30,${za})`; c.fillText('z', cx+44, cy-26);
+  c.font = 'bold 11px serif';
+  c.fillStyle = `rgba(120,80,30,${za*0.7})`; c.fillText('z', cx+56, cy-38);
+  c.font = 'bold 9px serif';
+  c.fillStyle = `rgba(120,80,30,${za*0.4})`; c.fillText('z', cx+64, cy-48);
+}
+
+// helper: rounded rect fill path
+function _roundRect(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x+r, y);
+  c.lineTo(x+w-r, y); c.arcTo(x+w,y, x+w,y+r, r);
+  c.lineTo(x+w, y+h-r); c.arcTo(x+w,y+h, x+w-r,y+h, r);
+  c.lineTo(x+r, y+h); c.arcTo(x,y+h, x,y+h-r, r);
+  c.lineTo(x, y+r); c.arcTo(x,y, x+r,y, r);
+  c.closePath();
+}
+
+// ─── Cat AI ───────────────────────────────────────────────────────────────────
+const BOUNDS = { minX: 110, maxX: 690, minY: 315, maxY: 468 };
+let lastTs = 0, dayTimer = 90; // each "month" = 90 seconds
+
+function updateCat(dt) {
+  if(gameOver) return;
+
+  CAT.stateTimer -= dt;
+  CAT.walkFrameTimer += dt;
+  if(CAT.walkFrameTimer > 0.32) { CAT.walkFrameTimer = 0; CAT.walkFrame++; }
+
+  if(CAT.state === 'idle' && CAT.stateTimer <= 0 && CAT.targetX === null) {
+    const wb = catPersonality ? catPersonality.wanderBonus : 0;
+    const wanderChance = (catMood === 'happy' ? 0.55 : catMood === 'bored' ? 0.2 : 0.45) + wb;
+    if(Math.random() < wanderChance) {
+      CAT.targetX = BOUNDS.minX + Math.random() * (BOUNDS.maxX - BOUNDS.minX);
+      CAT.targetY = BOUNDS.minY + Math.random() * (BOUNDS.maxY - BOUNDS.minY);
+      CAT.state = 'walk';
+    } else {
+      CAT.stateTimer = 1.5 + Math.random() * 3;
+    }
+  }
+
+  if(CAT.targetX !== null) {
+    const dx = CAT.targetX - CAT.x, dy = CAT.targetY - CAT.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    CAT.facingLeft = dx < 0;
+    if(dist < 5) {
+      CAT.x = CAT.targetX; CAT.y = CAT.targetY;
+      CAT.targetX = null; CAT.targetY = null;
+      if(CAT.state === 'walk') { CAT.state = 'idle'; CAT.stateTimer = 1 + Math.random() * 2; }
+    } else {
+      const spd = 95 * dt;
+      CAT.x += (dx/dist) * spd;
+      CAT.y += (dy/dist) * spd;
+    }
+  }
+
+  CAT.x = Math.max(80, Math.min(720, CAT.x));
+  CAT.y = Math.max(300, Math.min(490, CAT.y));
+}
+
+// ─── Game updates ─────────────────────────────────────────────────────────────
+function updateCooldowns(dt) {
+  ['feed','play','pet','sleep'].forEach(k => {
+    COOLDOWNS[k] = Math.max(0, COOLDOWNS[k] - dt);
+    const btn = document.getElementById('btn-' + k);
+    const cd  = document.getElementById('cd-' + k);
+    if(COOLDOWNS[k] > 0) {
+      btn.disabled = true;
+      cd.textContent = Math.ceil(COOLDOWNS[k]) + 's';
+    } else {
+      btn.disabled = false;
+      cd.textContent = '';
+    }
+  });
+  // unlock button cooldowns
+  unlockedIds.forEach(id => {
+    const u = UNLOCKS.find(u => u.id === id);
+    if(!u) return;
+    COOLDOWNS[u.cdKey] = Math.max(0, (COOLDOWNS[u.cdKey] || 0) - dt);
+    const btn = document.getElementById('btn-' + id);
+    const cdEl = document.getElementById('cd-' + id);
+    if(!btn) return;
+    if(COOLDOWNS[u.cdKey] > 0) {
+      btn.disabled = true;
+      if(cdEl) cdEl.textContent = Math.ceil(COOLDOWNS[u.cdKey]) + 's';
+    } else {
+      btn.disabled = false;
+      if(cdEl) cdEl.textContent = '';
+    }
+  });
+}
+
+function updateDay(dt) {
+  if(gameOver) return;
+  dayTimer -= dt;
+  if(dayTimer <= 0) { dayTimer = 90; advanceDay(); }
+}
+
+function advanceDay() {
+  // Compute mood
+  if(STATS.hunger < 25 || STATS.health < 30) {
+    catMood = 'anxious';
+  } else if(actionsToday === 0) {
+    catMood = 'bored';
+  } else if(STATS.trust >= 60 && STATS.hunger >= 50 && STATS.health >= 60) {
+    catMood = 'happy';
+  } else {
+    catMood = 'neutral';
+  }
+  actionsToday = 0;
+  updateMoodChip();
+  checkUnlocks();
+
+  month++;
+  STATS.hunger  = Math.max(0, STATS.hunger - 16);
+  STATS.health  = Math.max(0, STATS.health - (STATS.hunger < 20 ? 12 : 2));
+  STATS.trust   = Math.max(0, STATS.trust  - (STATS.hunger < 10 ? 5  : 0));
+  clampStats(); updateHUD();
+
+  if(month > 12) { triggerEnding(); return; }
+  document.getElementById('day-chip').textContent = `第 ${month} 月`;
+  document.getElementById('growth-chip').textContent = getGrowthLabel();
+  updateCatScale();
+  updateStateChip();
+
+  // Hunger warning
+  if(STATS.hunger < 20 && !shownTips.has('hunger_low')) {
+    shownTips.add('hunger_low');
+    later(400, () => showToast('⚠️', ACTION_TIPS.hunger_low.text));
+  }
+
+  // Monthly story toast
+  const story = STORY.find(s => s.month === month);
+  if(story) {
+    const delay = STATS.hunger < 20 ? 3500 : 400;
+    later(delay, () => showToast(story.icon, story.text));
+  }
+
+  // Random event (40%)
+  if(!eventLock && Math.random() < 0.4) {
+    const phase = getPhase();
+    const pool = EVENTS.filter(e => e.phases.includes(phase));
+    if(pool.length) {
+      const ev = pool[Math.floor(Math.random() * pool.length)];
+      later(story ? 4500 : 1500, () => triggerEvent(ev));
+    }
+  }
+}
+
+function triggerEvent(ev) {
+  if(eventLock) return;
+  eventLock = true;
+  CAT.reactEmoji = ev.catReact || '';
+  CAT.glowColor  = ev.catGlow  || null;
+  if(!ev.choices) ev.effect();
+  clampStats(); updateHUD(); updateStateChip(); checkUnlocks();
+  later(600, () => {
+    if(ev.choices) {
+      showChoicePopup(ev);
+    } else {
+      showPopup(ev.emoji, ev.title, ev.desc, ev.tip);
+    }
+    eventLock = false;
+  });
+}
+
+// small non-blocking toast (bottom of screen, auto-dismiss)
+function showToast(icon, text) {
+  const el = document.createElement('div');
+  el.style.cssText = `
+    position:fixed; bottom:90px; left:50%; transform:translateX(-50%);
+    background:rgba(255,249,235,0.97); border:1px solid rgba(180,130,70,0.35);
+    border-radius:16px; padding:10px 20px; max-width:480px; width:90%;
+    color:#6b4226; font-size:13px; line-height:1.7;
+    box-shadow:0 6px 24px rgba(100,50,10,0.18);
+    font-family:'Microsoft YaHei','微软雅黑',serif;
+    z-index:50; text-align:center;
+    animation:toastIn 0.3s cubic-bezier(.34,1.56,.64,1);
+  `;
+  el.innerHTML = `${icon} ${text}`;
+  document.body.appendChild(el);
+  later(3800, () => {
+    el.style.transition='opacity 0.4s';
+    el.style.opacity='0';
+    later(400, () => el.remove());
+  });
+}
+
+// inject toast animation
+const toastStyle = document.createElement('style');
+toastStyle.textContent = `@keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(12px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }`;
+document.head.appendChild(toastStyle);
+
+function clampStats() {
+  for(const k in STATS) STATS[k] = Math.max(0, Math.min(100, STATS[k]));
+}
+
+function updateHUD() {
+  document.getElementById('bar-trust').style.width  = STATS.trust  + '%';
+  document.getElementById('bar-health').style.width = STATS.health + '%';
+  document.getElementById('bar-hunger').style.width = STATS.hunger + '%';
+}
+
+function updateStateChip() {
+  const t = STATS.trust;
+  const phase = getPhase();
+  const phaseLabel = phase==='stranger'?'陌生期（1-4月）' : phase==='curious'?'试探期（5-8月）' : '亲密期（9-12月）';
+  const trustLabel = t>=85?'😻 挚友' : t>=60?'😺 熟悉' : t>=35?'🙂 接受' : '😿 陌生';
+  document.getElementById('state-chip').textContent = `${trustLabel} · ${phaseLabel}`;
+}
+
+function updateMoodChip() {
+  const el = document.getElementById('mood-chip');
+  const labels = { happy:'😻 开心', neutral:'😐 平静', bored:'😒 无聊', anxious:'😟 焦虑' };
+  el.textContent = labels[catMood] || '😐 平静';
+  el.className = 'mood-' + catMood;
+  el.id = 'mood-chip';
+}
+
+function checkUnlocks() {
+  UNLOCKS.forEach(u => {
+    if(!unlockedIds.has(u.id) && u.condition()) {
+      unlockedIds.add(u.id);
+      addUnlockButton(u);
+      later(200, () => showToast('🔓', `新互动解锁：${u.label}`));
+    }
+  });
+}
+
+function addUnlockButton(u) {
+  COOLDOWNS[u.cdKey] = COOLDOWNS[u.cdKey] || 0;
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-unlock';
+  btn.id = 'btn-' + u.id;
+  btn.innerHTML = `${u.label} <span class="btn-cd" id="cd-${u.id}"></span>`;
+  btn.onclick = () => {
+    if(COOLDOWNS[u.cdKey] > 0 || gameOver) return;
+    COOLDOWNS[u.cdKey] = u.cd;
+    actionsToday++;
+    u.effect();
+    if(!shownTips.has('unlock_' + u.id)) {
+      shownTips.add('unlock_' + u.id);
+      later(400, () => showToast(u.toast.icon, u.toast.text));
+    }
+  };
+  document.getElementById('actions').appendChild(btn);
+}
+
+// ─── Actions ──────────────────────────────────────────────────────────────────
+function action(type) {
+  if(COOLDOWNS[type] > 0 || gameOver) return;
+  COOLDOWNS[type] = CD_TIMES[type];
+  actionsToday++;
+
+  const P = catPersonality || { trustMult:1, playMult:1, sleepMult:1, feedMult:1 };
+
+  if(type === 'feed') {
+    CAT.targetX = BOWL.x; CAT.targetY = BOWL.y - 15; CAT.state = 'walk';
+    later(1800, () => { CAT.state='eat'; CAT.stateTimer=4; CAT.reactEmoji='😋'; CAT.glowColor='#e89040'; });
+    later(5800, () => {
+      STATS.hunger = Math.min(100, STATS.hunger + Math.round(25 * P.feedMult));
+      STATS.health = Math.min(100, STATS.health + 5);
+      STATS.trust  = Math.min(100, STATS.trust  + Math.round(4 * P.trustMult));
+      endAnim(); spawnParticles('🐟',3); clampStats(); updateHUD(); updateStateChip(); checkUnlocks();
+      if(!shownTips.has('feed_first')) {
+        shownTips.add('feed_first');
+        later(300, () => showToast(ACTION_TIPS.feed_first.icon, ACTION_TIPS.feed_first.text));
+      }
+    });
+  } else if(type === 'play') {
+    CAT.targetX = TOY.x; CAT.targetY = TOY.y - 12; CAT.state = 'walk';
+    later(1800, () => { CAT.state='play'; CAT.stateTimer=5; CAT.reactEmoji='⚡'; CAT.glowColor='#d4904a'; });
+    later(6800, () => {
+      STATS.trust  = Math.min(100, STATS.trust  + Math.round(8 * P.playMult * P.trustMult));
+      STATS.health = Math.min(100, STATS.health + 3);
+      STATS.hunger = Math.max(0,   STATS.hunger - 5);
+      endAnim(); spawnParticles('🧶',3); clampStats(); updateHUD(); updateStateChip(); checkUnlocks();
+      if(!shownTips.has('play_first')) {
+        shownTips.add('play_first');
+        later(300, () => showToast(ACTION_TIPS.play_first.icon, ACTION_TIPS.play_first.text));
+      }
+    });
+  } else if(type === 'pet') {
+    if(STATS.trust < 30) {
+      CAT.reactEmoji = '😾'; CAT.glowColor = '#a07050';
+      spawnParticles('😾',1);
+      later(2000, () => { CAT.reactEmoji=''; CAT.glowColor=null; });
+      if(!shownTips.has('pet_refused')) {
+        shownTips.add('pet_refused');
+        later(500, () => showToast(ACTION_TIPS.pet_refused.icon, ACTION_TIPS.pet_refused.text));
+      }
+      return;
+    }
+    CAT.targetX = 400; CAT.targetY = 368; CAT.state = 'walk';
+    later(1500, () => { CAT.state='react'; CAT.stateTimer=3; CAT.reactEmoji='💕'; CAT.glowColor='#e87080'; });
+    later(4500, () => {
+      STATS.trust = Math.min(100, STATS.trust + Math.round(6 * P.trustMult));
+      endAnim(); spawnParticles('💕',5); clampStats(); updateHUD(); updateStateChip(); checkUnlocks();
+      if(!shownTips.has('pet_first')) {
+        shownTips.add('pet_first');
+        later(300, () => showToast(ACTION_TIPS.pet_first.icon, ACTION_TIPS.pet_first.text));
+      }
+    });
+  } else if(type === 'sleep') {
+    CAT.targetX = BED.x; CAT.targetY = BED.y - 12; CAT.state = 'walk';
+    later(1500, () => { CAT.state='sleep'; CAT.stateTimer=12; CAT.reactEmoji='💤'; CAT.glowColor='#80b8d0'; });
+    later(13500, () => {
+      STATS.health = Math.min(100, STATS.health + Math.round(20 * P.sleepMult));
+      STATS.trust  = Math.min(100, STATS.trust  + 2);
+      endAnim(); spawnParticles('⭐',3);
+      dayTimer = Math.max(0, dayTimer - 20);
+      clampStats(); updateHUD(); updateStateChip(); checkUnlocks();
+      if(!shownTips.has('sleep_first')) {
+        shownTips.add('sleep_first');
+        later(300, () => showToast(ACTION_TIPS.sleep_first.icon, ACTION_TIPS.sleep_first.text));
+      }
+    });
+  }
+}
+
+function later(ms, fn) { setTimeout(fn, ms); }
+function endAnim() { CAT.state='idle'; CAT.stateTimer=2; CAT.reactEmoji=''; CAT.glowColor=null; }
+
+// ─── Particles ────────────────────────────────────────────────────────────────
+function spawnParticles(emoji, n) {
+  const wrap = document.getElementById('game-wrap');
+  const rect = wrap.getBoundingClientRect();
+  for(let i = 0; i < n; i++) {
+    const el = document.createElement('div');
+    el.className = 'particle';
+    el.textContent = emoji;
+    el.style.left = (rect.left + CAT.x + (Math.random()-0.5)*50) + 'px';
+    el.style.top  = (rect.top  + CAT.y - 60 + (Math.random()-0.5)*30) + 'px';
+    el.style.animationDelay = (i * 0.18) + 's';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1800);
+  }
+}
+
+// ─── Popup ────────────────────────────────────────────────────────────────────
+function showPopup(icon, title, body, tip) {
+  document.getElementById('popup-icon').textContent  = icon;
+  document.getElementById('popup-title').textContent = title;
+  document.getElementById('popup-body').textContent  = body;
+  const tipEl = document.getElementById('popup-tip');
+  if(tip) { tipEl.textContent = tip; tipEl.style.display = 'block'; }
+  else     { tipEl.style.display = 'none'; }
+  // hide choice UI
+  const choicesEl = document.getElementById('popup-choices');
+  choicesEl.style.display = 'none';
+  choicesEl.innerHTML = '';
+  document.getElementById('popup-result').style.display = 'none';
+  document.getElementById('popup-btn').style.display = 'block';
+  document.getElementById('popup').classList.add('show');
+}
+
+function showChoicePopup(ev) {
+  document.getElementById('popup-icon').textContent  = ev.emoji;
+  document.getElementById('popup-title').textContent = ev.title;
+  document.getElementById('popup-body').textContent  = ev.desc;
+  const tipEl = document.getElementById('popup-tip');
+  if(ev.tip) { tipEl.textContent = ev.tip; tipEl.style.display = 'block'; }
+  else        { tipEl.style.display = 'none'; }
+  document.getElementById('popup-result').style.display = 'none';
+  document.getElementById('popup-btn').style.display = 'none';
+
+  const choicesEl = document.getElementById('popup-choices');
+  choicesEl.style.display = 'flex';
+  choicesEl.innerHTML = '';
+  ev.choices.forEach((ch, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'btn choice-btn';
+    btn.textContent = ch.label;
+    btn.onclick = () => makeChoice(ev, idx);
+    choicesEl.appendChild(btn);
+  });
+  document.getElementById('popup').classList.add('show');
+}
+
+function makeChoice(ev, idx) {
+  const ch = ev.choices[idx];
+  // apply effect with personality multiplier where relevant
+  ch.effect();
+  clampStats(); updateHUD(); updateStateChip(); checkUnlocks();
+
+  // cat react
+  if(ch.catReact) { CAT.reactEmoji = ch.catReact; CAT.glowColor = ch.catGlow || null; }
+
+  // show result text, hide choice buttons, show confirm btn
+  const choicesEl = document.getElementById('popup-choices');
+  Array.from(choicesEl.children).forEach((b, i) => {
+    b.disabled = true;
+    if(i === idx) b.classList.add('chosen');
+  });
+  const resultEl = document.getElementById('popup-result');
+  resultEl.textContent = ch.result;
+  resultEl.style.display = 'block';
+  document.getElementById('popup-btn').style.display = 'block';
+}
+
+function closePopup() {
+  document.getElementById('popup').classList.remove('show');
+  CAT.reactEmoji = '';
+  CAT.glowColor  = null;
+
+  // First close = assign personality
+  if(!catPersonality && !personalityIntroShown) {
+    personalityIntroShown = true;
+    const keys = Object.keys(PERSONALITIES);
+    const key  = keys[Math.floor(Math.random() * keys.length)];
+    catPersonality = PERSONALITIES[key];
+    document.getElementById('personality-chip').textContent = catPersonality.name;
+    later(300, () => showToast('✨', `${catPersonality.name} — ${catPersonality.desc}`));
+  }
+}
+
+// ─── Ending ───────────────────────────────────────────────────────────────────
+function triggerEnding() {
+  gameOver = true;
+  const t = STATS.trust;
+  let icon, title, body;
+  if(t >= 85) {
+    icon='😻'; title='最完美的结局 — 挚友';
+    body='一年，你们建立了深厚的信任。\n\n它会主动蹭你的脚踝，在你工作时趴在键盘旁，在你难过时凑近来陪着你。\n\n它从一只警惕的小猫，成长为你的挚友，这段缘分将伴随你们一生。';
+  } else if(t >= 60) {
+    icon='😺'; title='美好的日常 — 朋友';
+    body='一年的相处，猫咪接受了你。\n\n它会在你呼唤时缓缓走来，偶尔让你抚摸下巴。虽然还保留着一点神秘，但你们之间有了真实的联结。';
+  } else if(t >= 35) {
+    icon='🙂'; title='平淡的共处 — 室友';
+    body='你们保持着礼貌的距离。\n\n猫咪不再回避，但也不主动亲近。再多一点耐心，也许下一年会不同。';
+  } else {
+    icon='😿'; title='还需要努力';
+    body='猫咪对你仍有戒心。\n\n信任需要时间和持续的关爱。从猫咪的角度出发，下一次一定会更好。';
+  }
+  later(800, () => showPopup(icon, '✨ 一年结束 · '+title, body));
+}
+
+// ─── Render loop ──────────────────────────────────────────────────────────────
+function loop(ts) {
+  if(lastTs === 0) lastTs = ts;
+  const dt = Math.min((ts - lastTs) / 1000, 0.1);
+  lastTs = ts;
+
+  updateCat(dt);
+  updateCooldowns(dt);
+  updateDay(dt);
+
+  ctx.clearRect(0, 0, W, H);
+  drawCat(ctx, CAT, STATS.trust);
+
+  requestAnimationFrame(loop);
+}
+
+// ─── Canvas click ─────────────────────────────────────────────────────────────
+canvas.addEventListener('click', e => {
+  if(gameOver) return;
+  const r = canvas.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  const dx = mx - CAT.x, dy = my - CAT.y;
+  if(Math.sqrt(dx*dx + dy*dy) < 65 && COOLDOWNS.pet <= 0) action('pet');
+});
+
+// ─── Start ────────────────────────────────────────────────────────────────────
+showPopup('🐱', '第一次的亲密接触',
+`一只刚满两月的小狸花猫，来到了你的家。
+
+它缩在纸箱里，只有尾巴尖在微微颤抖。
+
+接下来的 12 个月，你能赢得它的信任，
+看着它从一只胆怯的幼猫长成你的挚友吗？
+
+🐟 喂食 — 填充饱食值，增加信任
+🧶 玩耍 — 大幅提升信任，消耗体力
+🤚 抚摸 — 建立情感联结（需信任≥30）
+🌙 休息 — 让猫咪恢复健康
+
+每个月都会发生一些小故事……`);
+
+updateCatScale();
+updateMoodChip();
+updateStateChip();
+document.getElementById('growth-chip').textContent = getGrowthLabel();
+checkUnlocks();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
